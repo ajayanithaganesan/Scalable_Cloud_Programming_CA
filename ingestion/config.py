@@ -1,10 +1,12 @@
-# AWS Region
-AWS_REGION = "us-east-1"
+from dotenv import load_dotenv
+import os
 
-# Kinesis Stream Name
+load_dotenv()
+
+AWS_REGION = os.getenv("AWS_REGION")
+
 KINESIS_STREAM = "crypto-stream"
 
-# Binance WebSocket URL
 BINANCE_WS = (
     "wss://stream.binance.com:443/stream?"
     "streams=btcusdt@trade/"
