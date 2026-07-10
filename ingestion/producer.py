@@ -1,8 +1,10 @@
 import json
 import boto3
 import websocket
+from datetime import datetime
 
 from config import AWS_REGION, KINESIS_STREAM, BINANCE_WS
+
 
 # Creating Kinesis Client
 
@@ -11,7 +13,10 @@ kinesis = boto3.client(
     region_name=AWS_REGION
 )
 
+
+
 # Sending Trade to Kinesis
+
 
 def send_to_kinesis(symbol, price, quantity, trade_time):
 
@@ -24,20 +29,28 @@ def send_to_kinesis(symbol, price, quantity, trade_time):
 
     try:
 
-        kinesis.put_record(
+        response = kinesis.put_record(
             StreamName=KINESIS_STREAM,
             Data=json.dumps(record),
             PartitionKey=symbol
         )
 
-        print(f"✔ {symbol} sent to Kinesis")
+        print("\n----------------------------------------")
+        print(f"Time          : {datetime.now()}")
+        print(f"Record Sent   : {record}")
+        print(f"Shard ID      : {response['ShardId']}")
+        print(f"Sequence No   : {response['SequenceNumber']}")
+        print("----------------------------------------")
 
     except Exception as e:
 
-        print("Kinesis Error:", e)
+        print("\n❌ Kinesis Error")
+        print(e)
 
 
-# WebSocket Message
+
+# Handle Incoming WebSocket Message
+
 
 def on_message(ws, message):
 
@@ -61,49 +74,55 @@ def on_message(ws, message):
 
     except Exception as e:
 
-        print("Processing Error:", e)
+        print("\n❌ Processing Error")
+        print(e)
 
 
-# Errors
+
+# WebSocket Error
+
 
 def on_error(ws, error):
 
-    print("WebSocket Error:", error)
+    print("\n❌ WebSocket Error")
+    print(error)
 
-# Connection Closed
+
+
+# WebSocket Closed
+
 
 def on_close(ws, close_status_code, close_msg):
 
-    print("Connection Closed")
+    print("\n🔴 Connection Closed")
 
 
-# Connection Open
+
+# WebSocket Open
+
 
 def on_open(ws):
 
-    print("Connected to Binance WebSocket")
+    print("\n🟢 Connected to Binance WebSocket")
+    print("Listening for BTC, ETH and SOL trades...\n")
+
+
 
 # Main
+
 
 def main():
 
     ws = websocket.WebSocketApp(
-
         BINANCE_WS,
-
         on_open=on_open,
-
         on_message=on_message,
-
         on_error=on_error,
-
         on_close=on_close
-
     )
 
     ws.run_forever()
 
 
 if __name__ == "__main__":
-
     main()
