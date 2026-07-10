@@ -38,6 +38,7 @@ S3 Hosted Dashboard
 - Python
 - AWS Lambda
 - Amazon Kinesis
+- Amazon Kinesis Firehose
 - Amazon S3
 - Amazon EMR
 - DynamoDB
