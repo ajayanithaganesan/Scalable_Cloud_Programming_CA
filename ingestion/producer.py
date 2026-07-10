@@ -2,6 +2,7 @@ import json
 import boto3
 import websocket
 from datetime import datetime
+import time
 
 from config import AWS_REGION, KINESIS_STREAM, BINANCE_WS
 
@@ -113,15 +114,29 @@ def on_open(ws):
 
 def main():
 
-    ws = websocket.WebSocketApp(
-        BINANCE_WS,
-        on_open=on_open,
-        on_message=on_message,
-        on_error=on_error,
-        on_close=on_close
-    )
+    while True:
 
-    ws.run_forever()
+        try:
+
+            print("\nStarting Binance WebSocket...")
+
+            ws = websocket.WebSocketApp(
+                BINANCE_WS,
+                on_open=on_open,
+                on_message=on_message,
+                on_error=on_error,
+                on_close=on_close
+            )
+
+            ws.run_forever()
+
+        except Exception as e:
+
+            print(f"\nUnexpected Error: {e}")
+
+        print("Reconnecting in 5 seconds...\n")
+
+        time.sleep(5)
 
 
 if __name__ == "__main__":
