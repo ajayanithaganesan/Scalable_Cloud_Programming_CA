@@ -46,3 +46,20 @@ S3 Hosted Dashboard
 - HTML
 - CSS
 - JavaScript
+
+
+# Batch Layer
+
+This module processes historical cryptocurrency trade data stored in Amazon S3.
+
+Metrics generated:
+
+- Average Price
+- Total Volume
+- Trade Count
+- VWAP
+
+The Spark job is executed on Amazon EMR.
+
+Output is written back to Amazon S3 for querying using Amazon Athena.
+
