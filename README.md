@@ -319,9 +319,3 @@ Metrics to measure:
 
 ---
 
-## Development Rules
-- Keep code simple
-- Use Spark DataFrame API
-- Avoid unnecessary complexity
-- Never commit `.env`
-
