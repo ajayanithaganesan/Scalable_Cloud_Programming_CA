@@ -320,9 +320,6 @@ Metrics to measure:
 ---
 
 ## Development Rules
-
-- One feature per commit
-- Weekly commits from both members
 - Keep code simple
 - Use Spark DataFrame API
 - Avoid unnecessary complexity
