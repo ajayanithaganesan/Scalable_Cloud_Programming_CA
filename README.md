@@ -91,6 +91,9 @@ The dashboard will combine batch-layer and speed-layer metrics so the historical
 - Firehose configuration
 - Firehose to S3 verification
 - Raw S3 storage
+- Historical Binance trade dataset collected and validated
+- Local Apache Spark development environment configured
+- Batch layer architecture redesigned for cost-efficient EMR execution
 
 ### In Progress
 
