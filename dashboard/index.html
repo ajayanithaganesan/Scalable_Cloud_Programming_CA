@@ -1,11 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crypto Contagion & Liquidity Monitor</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN for real-time visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
+        :root {
+            --bg-main: #020617;
+            --sidebar-bg: #0b1329;
+            --panel-bg: rgba(30, 41, 59, 0.45);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #38bdf8;
+            --accent-purple: #a855f7;
+            --accent-green: #4ade80;
+            --card-bg: rgba(15, 23, 42, 0.7);
+        }
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -14,278 +32,819 @@
         }
 
         body {
-            background-color: #0f172a;
-            color: #f8fafc;
-            padding: 24px;
+            background-color: var(--bg-main);
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.04) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.04) 0%, transparent 40%);
+            color: var(--text-primary);
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
         }
 
-        .header {
-            text-align: center;
+        /* --- SIDEBAR STYLING --- */
+        .sidebar {
+            width: 260px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--panel-border);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 24px 16px;
+            position: fixed;
+            height: 100vh;
+            z-index: 10;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 12px 24px 12px;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+        }
+
+        .brand-text {
+            font-size: 1.05rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #e0f2fe, #38bdf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-menu {
+            list-style: none;
+            margin-top: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .nav-item button {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: transparent;
+            border: none;
+            border-radius: 10px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+        }
+
+        .nav-item button svg {
+            width: 18px;
+            height: 18px;
+            stroke: var(--text-secondary);
+            transition: stroke 0.2s ease;
+        }
+
+        .nav-item button:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        .nav-item button:hover svg {
+            stroke: var(--accent-blue);
+        }
+
+        .nav-item.active button {
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--accent-blue);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+
+        .nav-item.active button svg {
+            stroke: var(--accent-blue);
+        }
+
+        .sidebar-footer {
+            padding: 16px;
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 12px;
+            border: 1px solid var(--panel-border);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .live-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--accent-green);
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4);
+            }
+
+            70% {
+                opacity: 0.7;
+                box-shadow: 0 0 0 6px rgba(74, 222, 128, 0);
+            }
+
+            100% {
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+            }
+        }
+
+        /* --- MAIN CONTENT AREA --- */
+        .main-wrapper {
+            margin-left: 260px;
+            flex: 1;
+            padding: 32px;
+            max-width: calc(100vw - 260px);
+        }
+
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 28px;
             padding-bottom: 16px;
-            border-bottom: 1px solid #1e293b;
+            border-bottom: 1px solid var(--panel-border);
         }
 
-        .header h1 {
-            font-size: 1.8rem;
+        .header-title h1 {
+            font-size: 1.6rem;
             font-weight: 700;
-            color: #38bdf8;
-            letter-spacing: -0.5px;
         }
 
-        .header p {
-            font-size: 0.9rem;
-            color: #94a3b8;
-            margin-top: 6px;
+        .header-title p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
         }
 
-        /* 4-Panel Grid Layout */
-        .dashboard-grid {
+        .last-updated-tag {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--panel-border);
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-family: monospace;
+        }
+
+        /* PAGE VIEWS MANAGEMENT */
+        .page-view {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .page-view.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* GRID SYSTEM */
+        .grid-2 {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            max-width: 1200px;
-            margin: 0 auto;
+            gap: 24px;
         }
 
-        @media (max-width: 768px) {
-            .dashboard-grid {
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .grid-1-2 {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 1024px) {
+
+            .grid-2,
+            .grid-3,
+            .grid-1-2 {
                 grid-template-columns: 1fr;
             }
         }
 
+        /* CARDS & PANELS */
         .panel-card {
-            background: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+            margin-bottom: 24px;
         }
 
         .panel-title {
-            font-size: 1.1rem;
+            font-size: 1.05rem;
             font-weight: 600;
-            margin-bottom: 16px;
-            color: #f1f5f9;
+            margin-bottom: 20px;
+            color: var(--text-primary);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
         .source-tag {
-            font-size: 0.75rem;
-            padding: 4px 8px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            padding: 5px 10px;
             border-radius: 6px;
-            background: #0f172a;
-            color: #38bdf8;
-            border: 1px solid #0284c7;
+            background: rgba(15, 23, 42, 0.8);
+            color: var(--accent-blue);
+            border: 1px solid rgba(56, 189, 248, 0.2);
         }
 
-        /* Panel 1: Liquidity Cards */
-        .liquidity-cards {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-        }
-
+        /* COIN STAT CARDS */
         .coin-card {
-            background: #0f172a;
-            border-radius: 8px;
-            padding: 14px;
-            text-align: center;
-            border: 1px solid #334155;
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid var(--panel-border);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
         .coin-symbol {
-            font-size: 1rem;
-            font-weight: 700;
-            color: #cbd5e1;
-            margin-bottom: 6px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-secondary);
         }
 
         .coin-ratio {
-            font-size: 1.4rem;
+            font-size: 1.6rem;
             font-weight: 700;
-            color: #f8fafc;
-            margin-bottom: 8px;
+            margin: 8px 0;
+            font-family: monospace;
         }
 
         .badge {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             padding: 4px 10px;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 600;
-            border-radius: 12px;
+            text-transform: uppercase;
+            border-radius: 20px;
+            width: fit-content;
         }
 
-        .badge-green { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid #22c55e; }
-        .badge-yellow { background: rgba(234, 179, 8, 0.2); color: #facc15; border: 1px solid #eab308; }
-        .badge-red { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
-        .badge-gray { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; border: 1px solid #64748b; }
+        .badge-green {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
 
-        /* Tables */
+        .badge-yellow {
+            background: rgba(234, 179, 8, 0.15);
+            color: #facc15;
+            border: 1px solid rgba(234, 179, 8, 0.3);
+        }
+
+        .badge-red {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .badge-gray {
+            background: rgba(148, 163, 184, 0.15);
+            color: #cbd5e1;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+        }
+
+        /* TABLES */
         table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             font-size: 0.9rem;
         }
 
-        th, td {
-            padding: 10px 12px;
+        th,
+        td {
+            padding: 12px 14px;
             text-align: left;
-            border-bottom: 1px solid #334155;
         }
 
         th {
-            color: #94a3b8;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
             font-weight: 600;
-            background: #0f172a;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        tr:hover {
-            background: rgba(51, 65, 85, 0.3);
+        td {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            font-variant-numeric: tabular-nums;
         }
 
-        /* Panel 4 Placeholder */
+        tbody tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* GRAPH CONTAINERS */
+        .chart-container-lg {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        .chart-container-md {
+            position: relative;
+            height: 200px;
+            width: 100%;
+        }
+
+        .chart-container-sm {
+            position: relative;
+            height: 60px;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        /* BATCH PLACEHOLDER */
         .batch-placeholder {
-            height: 180px;
+            height: 220px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: #0f172a;
-            border: 2px dashed #334155;
-            border-radius: 8px;
-            color: #64748b;
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px dashed rgba(168, 85, 247, 0.4);
+            border-radius: 12px;
+            color: var(--text-muted);
             text-align: center;
-            padding: 20px;
+            padding: 24px;
         }
 
         .batch-placeholder h4 {
-            color: #94a3b8;
+            color: var(--text-secondary);
             margin-bottom: 8px;
         }
     </style>
 </head>
+
 <body>
 
-    <div class="header">
-        <h1>Real-Time Crypto Contagion & Liquidity Monitor</h1>
-        <p>Lambda Architecture — Speed Layer (DynamoDB) | Last Refreshed: <span id="last-updated">Updating...</span></p>
-    </div>
-
-    <div class="dashboard-grid">
-        
-        <!-- Panel 1: Liquidity Health -->
-        <div class="panel-card">
-            <div class="panel-title">
-                Panel 1 — Liquidity Health
-                <span class="source-tag">Speed Layer</span>
+    <!-- SIDEBAR NAVIGATION BAR -->
+    <aside class="sidebar">
+        <div>
+            <div class="sidebar-brand">
+                <div class="brand-icon">⚡</div>
+                <div class="brand-text">CryptoPulse</div>
             </div>
-            <div class="liquidity-cards" id="panel1-container">
-                <div class="coin-card"><div class="coin-symbol">BTC</div><div class="coin-ratio">--</div><span class="badge badge-gray">Loading</span></div>
-                <div class="coin-card"><div class="coin-symbol">ETH</div><div class="coin-ratio">--</div><span class="badge badge-gray">Loading</span></div>
-                <div class="coin-card"><div class="coin-symbol">SOL</div><div class="coin-ratio">--</div><span class="badge badge-gray">Loading</span></div>
+
+            <ul class="nav-menu">
+                <li class="nav-item active" onclick="switchTab('overview', this)">
+                    <button>
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        </svg>
+                        Overview Dashboard
+                    </button>
+                </li>
+                <li class="nav-item" onclick="switchTab('liquidity', this)">
+                    <button>
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+                        </svg>
+                        Liquidity Health
+                    </button>
+                </li>
+                <li class="nav-item" onclick="switchTab('contagion', this)">
+                    <button>
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                        Contagion Risk
+                    </button>
+                </li>
+                <li class="nav-item" onclick="switchTab('analytics', this)">
+                    <button>
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                            <line x1="18" y1="20" x2="18" y2="10"></line>
+                            <line x1="12" y1="20" x2="12" y2="4"></line>
+                            <line x1="6" y1="20" x2="6" y2="14"></line>
+                        </svg>
+                        Market Analytics
+                    </button>
+                </li>
+            </ul>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="live-status">
+                <div class="pulse-dot"></div>
+                Lambda Engine Active
+            </div>
+            <span>DynamoDB Speed Layer</span>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="main-wrapper">
+
+        <!-- HEADER BAR -->
+        <div class="header-bar">
+            <div class="header-title">
+                <h1 id="page-title">Overview Dashboard</h1>
+                <p>Real-Time Contagion & Liquidity Speed Layer Engine</p>
+            </div>
+            <div class="last-updated-tag">
+                Refreshed: <span id="last-updated">Updating...</span>
             </div>
         </div>
 
-        <!-- Panel 2: Crypto Contagion -->
-        <div class="panel-card">
-            <div class="panel-title">
-                Panel 2 — Crypto Contagion
-                <span class="source-tag">Speed Layer</span>
+        <!-- PAGE 1: OVERVIEW DASHBOARD -->
+        <div id="view-overview" class="page-view active">
+            <!-- Liquidity Cards Top Row -->
+            <div class="grid-3" style="margin-bottom: 24px;" id="overview-liquidity-cards">
+                <!-- Populated dynamically -->
             </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Coin Pair</th>
-                        <th>Correlation</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody id="panel2-container">
-                    <tr><td colspan="3" style="text-align: center; color: #64748b;">Loading correlation data...</td></tr>
-                </tbody>
-            </table>
-        </div>
 
-        <!-- Panel 3: Live Market Metrics -->
-        <div class="panel-card">
-            <div class="panel-title">
-                Panel 3 — Live Market Metrics
-                <span class="source-tag">Speed Layer</span>
+            <!-- Overview Live Price Trend Graph -->
+            <div class="panel-card">
+                <div class="panel-title">
+                    Real-Time Asset Price Trends
+                    <span class="source-tag">Live Feed</span>
+                </div>
+                <div class="chart-container-lg">
+                    <canvas id="chart-overview-prices"></canvas>
+                </div>
             </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Coin</th>
-                        <th>Price ($)</th>
-                        <th>Quantity</th>
-                        <th>Vol (USD)</th>
-                    </tr>
-                </thead>
-                <tbody id="panel3-container">
-                    <tr><td colspan="4" style="text-align: center; color: #64748b;">Loading live ticker...</td></tr>
-                </tbody>
-            </table>
-        </div>
 
-        <!-- Panel 4: Historical Trend (Batch Layer Placeholder) -->
-        <div class="panel-card">
-            <div class="panel-title">
-                Panel 4 — Historical Trend
-                <span class="source-tag" style="color: #a855f7; border-color: #9333ea;">Batch Layer</span>
-            </div>
-            <div class="batch-placeholder">
-                <h4>EMR Spark + Athena Batch Output</h4>
-                <p style="font-size: 0.85rem;">Historical trend analytics chart will be enabled upon Batch Layer completion.</p>
+            <!-- Quick Contagion & Live Ticker split -->
+            <div class="grid-2">
+                <div class="panel-card">
+                    <div class="panel-title">Contagion Summary</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Pair</th>
+                                <th>Correlation</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="overview-contagion-table"></tbody>
+                    </table>
+                </div>
+
+                <div class="panel-card">
+                    <div class="panel-title">Live Market Snapshot</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Price</th>
+                                <th>Vol (USD)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="overview-ticker-table"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
-    </div>
+        <!-- PAGE 2: LIQUIDITY HEALTH MONITOR -->
+        <div id="view-liquidity" class="page-view">
+            <div class="panel-card">
+                <div class="panel-title">
+                    Real-Time Liquidity Ratio Comparison
+                    <span class="source-tag">Speed Layer</span>
+                </div>
+                <div class="chart-container-lg">
+                    <canvas id="chart-liquidity-comparison"></canvas>
+                </div>
+            </div>
+
+            <div class="grid-3" id="liquidity-deepdive-cards">
+                <!-- Deep Dive Cards with Sparklines populated dynamically -->
+            </div>
+        </div>
+
+        <!-- PAGE 3: CONTAGION RISK MATRIX -->
+        <div id="view-contagion" class="page-view">
+            <div class="grid-1-2">
+                <div class="panel-card">
+                    <div class="panel-title">Contagion Pair Correlation Matrix</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Coin Pair</th>
+                                <th>Correlation</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="panel2-container">
+                            <tr>
+                                <td colspan="3" style="text-align: center;">Loading contagion metrics...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="panel-card">
+                    <div class="panel-title">
+                        Live Correlation Dynamics Chart
+                        <span class="source-tag">Speed Layer</span>
+                    </div>
+                    <div class="chart-container-lg">
+                        <canvas id="chart-contagion-dynamic"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE 4: MARKET ANALYTICS & BATCH LAYER -->
+        <div id="view-analytics" class="page-view">
+            <div class="panel-card">
+                <div class="panel-title">
+                    Live Volume vs Price Stream
+                    <span class="source-tag">Speed Layer</span>
+                </div>
+                <div class="chart-container-lg">
+                    <canvas id="chart-analytics-volume"></canvas>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="panel-card">
+                    <div class="panel-title">Panel 3 — Live Ticker Metrics</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Coin</th>
+                                <th>Price ($)</th>
+                                <th>Quantity</th>
+                                <th>Vol (USD)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="panel3-container">
+                            <tr>
+                                <td colspan="4" style="text-align: center;">Loading ticker metrics...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Batch Layer Placeholder -->
+                <div class="panel-card">
+                    <div class="panel-title">
+                        Panel 4 — Historical Trend
+                        <span class="source-tag"
+                            style="color: #d8b4fe; border-color: rgba(168, 85, 247, 0.3); background: rgba(88, 28, 135, 0.2);">Batch
+                            Layer</span>
+                    </div>
+                    <div class="batch-placeholder">
+                        <h4>EMR Spark + Athena Batch Output</h4>
+                        <p style="font-size: 0.85rem;">Historical trend analytics chart will be rendered here upon Batch
+                            Layer completion.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
 
     <script>
+        // --- SLIDING DATA WINDOW STORE ---
+        const MAX_POINTS = 15;
+        const store = {
+            labels: [],
+            prices: {},      // { BTCUSDT: [...] }
+            liquidity: {},   // { BTC: [...] }
+            volumes: {},     // { BTCUSDT: [...] }
+            correlations: {} // { 'BTC/ETH': [...] }
+        };
+
+        const coinColors = {
+            'BTC': '#38bdf8', 'ETH': '#a855f7', 'SOL': '#34d399',
+            'BTCUSDT': '#38bdf8', 'ETHUSDT': '#a855f7', 'SOLUSDT': '#34d399',
+            'BTC/ETH': '#38bdf8', 'ETH/SOL': '#a855f7', 'SOL/BTC': '#34d399'
+        };
+
+        // --- CHARTS OBJECT REFERENCES ---
+        let overviewPriceChart, liquidityComparisonChart, contagionDynamicChart, analyticsVolumeChart;
+        const sparklineCharts = {};
+
+        // TAB SWITCHING FUNCTION
+        function switchTab(tabId, elem) {
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.page-view').forEach(el => el.classList.remove('active'));
+
+            elem.classList.add('active');
+            const targetView = document.getElementById(`view-${tabId}`);
+            targetView.classList.add('active');
+
+            const pageTitles = {
+                'overview': 'Overview Dashboard',
+                'liquidity': 'Liquidity Health Monitor',
+                'contagion': 'Crypto Contagion Matrix',
+                'analytics': 'Market Analytics & Streaming'
+            };
+            document.getElementById('page-title').innerText = pageTitles[tabId];
+        }
+
+        // --- CHART INITIALIZATIONS ---
+        function initCharts() {
+            // 1. Overview Prices Chart
+            const ctx1 = document.getElementById('chart-overview-prices').getContext('2d');
+            overviewPriceChart = new Chart(ctx1, {
+                type: 'line',
+                data: { labels: [], datasets: [] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: true }, y: { grid: { color: 'rgba(255,255,255,0.05)' } } } }
+            });
+
+            // 2. Liquidity Health Comparison Chart
+            const ctx2 = document.getElementById('chart-liquidity-comparison').getContext('2d');
+            liquidityComparisonChart = new Chart(ctx2, {
+                type: 'bar',
+                data: { labels: [], datasets: [] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { grid: { color: 'rgba(255,255,255,0.05)' } } } }
+            });
+
+            // 3. Contagion Correlation Chart
+            const ctx3 = document.getElementById('chart-contagion-dynamic').getContext('2d');
+            contagionDynamicChart = new Chart(ctx3, {
+                type: 'line',
+                data: { labels: [], datasets: [] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { grid: { color: 'rgba(255,255,255,0.05)' } } } }
+            });
+
+            // 4. Analytics Volume Chart
+            const ctx4 = document.getElementById('chart-analytics-volume').getContext('2d');
+            analyticsVolumeChart = new Chart(ctx4, {
+                type: 'bar',
+                data: { labels: [], datasets: [] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { grid: { color: 'rgba(255,255,255,0.05)' } } } }
+            });
+        }
+
+        // MAIN POLLING & DOM UPDATER
         async function fetchSpeedMetrics() {
             try {
                 const response = await fetch('/api/speed-metrics');
                 const data = await response.json();
 
-                document.getElementById('last-updated').innerText = new Date().toLocaleTimeString() + ' UTC';
+                const timeStr = new Date().toLocaleTimeString();
+                document.getElementById('last-updated').innerText = timeStr + ' UTC';
 
-                // Render Panel 1: Liquidity Health
-                const p1Container = document.getElementById('panel1-container');
+                if (store.labels.length >= MAX_POINTS) store.labels.shift();
+                store.labels.push(timeStr);
+
+                // --- PROCESS PANEL 1: LIQUIDITY HEALTH ---
+                const p1Container = document.getElementById('overview-liquidity-cards');
+                const deepdiveContainer = document.getElementById('liquidity-deepdive-cards');
                 p1Container.innerHTML = '';
+                deepdiveContainer.innerHTML = '';
+
                 Object.keys(data.liquidity_health).forEach(symbol => {
                     const info = data.liquidity_health[symbol];
-                    const coinName = symbol.replace('USDT', '');
+                    const coin = symbol.replace('USDT', '');
+                    const ratio = parseFloat(info.ratio) || 0;
+
+                    if (!store.liquidity[coin]) store.liquidity[coin] = [];
+                    if (store.liquidity[coin].length >= MAX_POINTS) store.liquidity[coin].shift();
+                    store.liquidity[coin].push(ratio);
+
+                    // Render Overview Cards
                     p1Container.innerHTML += `
                         <div class="coin-card">
-                            <div class="coin-symbol">${coinName}</div>
+                            <div class="coin-symbol">${coin}</div>
                             <div class="coin-ratio">${info.ratio}</div>
                             <span class="badge badge-${info.badge}">${info.status}</span>
                         </div>
                     `;
+
+                    // Render Deep Dive Cards
+                    deepdiveContainer.innerHTML += `
+                        <div class="coin-card">
+                            <div class="coin-symbol">${coin} Liquidity Ratio</div>
+                            <div class="coin-ratio">${info.ratio}</div>
+                            <span class="badge badge-${info.badge}">${info.status}</span>
+                            <div class="chart-container-sm">
+                                <canvas id="spark-${coin}"></canvas>
+                            </div>
+                        </div>
+                    `;
                 });
 
-                // Render Panel 2: Contagion Table
+                // Update Sparklines on Page 2
+                setTimeout(() => {
+                    Object.keys(store.liquidity).forEach(coin => {
+                        const canvas = document.getElementById(`spark-${coin}`);
+                        if (canvas) {
+                            if (sparklineCharts[coin]) {
+                                sparklineCharts[coin].data.labels = Array(store.liquidity[coin].length).fill('');
+                                sparklineCharts[coin].data.datasets[0].data = store.liquidity[coin];
+                                sparklineCharts[coin].update('none');
+                            } else {
+                                sparklineCharts[coin] = new Chart(canvas.getContext('2d'), {
+                                    type: 'line',
+                                    data: {
+                                        labels: Array(store.liquidity[coin].length).fill(''),
+                                        datasets: [{ data: store.liquidity[coin], borderColor: coinColors[coin] || '#38bdf8', borderWidth: 2, pointRadius: 0 }]
+                                    },
+                                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+                                });
+                            }
+                        }
+                    });
+                }, 50);
+
+                // --- PROCESS PANEL 2: CONTAGION ---
                 const p2Container = document.getElementById('panel2-container');
+                const overviewP2Container = document.getElementById('overview-contagion-table');
                 p2Container.innerHTML = '';
+                overviewP2Container.innerHTML = '';
+
                 data.contagion.forEach(row => {
-                    p2Container.innerHTML += `
+                    const corrNum = parseFloat(row.correlation) || 0;
+                    if (!store.correlations[row.pair]) store.correlations[row.pair] = [];
+                    if (store.correlations[row.pair].length >= MAX_POINTS) store.correlations[row.pair].shift();
+                    store.correlations[row.pair].push(corrNum);
+
+                    const html = `
                         <tr>
                             <td><strong>${row.pair}</strong></td>
                             <td>${row.correlation}</td>
                             <td><span class="badge badge-${row.badge}">${row.status}</span></td>
                         </tr>
                     `;
+                    p2Container.innerHTML += html;
+                    overviewP2Container.innerHTML += html;
                 });
 
-                // Render Panel 3: Live Market Ticker Table
+                // --- PROCESS PANEL 3: LIVE TICKER ---
                 const p3Container = document.getElementById('panel3-container');
+                const overviewP3Container = document.getElementById('overview-ticker-table');
                 p3Container.innerHTML = '';
+                overviewP3Container.innerHTML = '';
+
                 data.live_ticker.forEach(row => {
-                    const priceFormatted = Number(row.price).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4});
-                    const volFormatted = Number(row.volume_usd).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    const priceFormatted = Number(row.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+                    const volFormatted = Number(row.volume_usd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+                    if (!store.prices[row.symbol]) store.prices[row.symbol] = [];
+                    if (store.prices[row.symbol].length >= MAX_POINTS) store.prices[row.symbol].shift();
+                    store.prices[row.symbol].push(parseFloat(row.price) || 0);
+
+                    if (!store.volumes[row.symbol]) store.volumes[row.symbol] = [];
+                    if (store.volumes[row.symbol].length >= MAX_POINTS) store.volumes[row.symbol].shift();
+                    store.volumes[row.symbol].push(parseFloat(row.volume_usd) || 0);
+
                     p3Container.innerHTML += `
                         <tr>
                             <td><strong>${row.symbol}</strong></td>
@@ -294,16 +853,68 @@
                             <td>$${volFormatted}</td>
                         </tr>
                     `;
+
+                    overviewP3Container.innerHTML += `
+                        <tr>
+                            <td><strong>${row.symbol}</strong></td>
+                            <td>$${priceFormatted}</td>
+                            <td>$${volFormatted}</td>
+                        </tr>
+                    `;
                 });
+
+                // --- UPDATE GLOBAL CHARTS ---
+                // 1. Overview Prices
+                overviewPriceChart.data.labels = store.labels;
+                overviewPriceChart.data.datasets = Object.keys(store.prices).map(sym => ({
+                    label: sym,
+                    data: store.prices[sym],
+                    borderColor: coinColors[sym] || '#38bdf8',
+                    tension: 0.3,
+                    fill: false
+                }));
+                overviewPriceChart.update('none');
+
+                // 2. Liquidity Health Comparison (Bar)
+                liquidityComparisonChart.data.labels = store.labels;
+                liquidityComparisonChart.data.datasets = Object.keys(store.liquidity).map(coin => ({
+                    label: coin,
+                    data: store.liquidity[coin],
+                    backgroundColor: coinColors[coin] || '#38bdf8'
+                }));
+                liquidityComparisonChart.update('none');
+
+                // 3. Contagion Dynamic Chart
+                contagionDynamicChart.data.labels = store.labels;
+                contagionDynamicChart.data.datasets = Object.keys(store.correlations).map(pair => ({
+                    label: pair,
+                    data: store.correlations[pair],
+                    borderColor: coinColors[pair] || '#a855f7',
+                    tension: 0.3
+                }));
+                contagionDynamicChart.update('none');
+
+                // 4. Analytics Volume Chart
+                analyticsVolumeChart.data.labels = store.labels;
+                analyticsVolumeChart.data.datasets = Object.keys(store.volumes).map(sym => ({
+                    label: `${sym} Vol`,
+                    data: store.volumes[sym],
+                    backgroundColor: coinColors[sym] || '#38bdf8'
+                }));
+                analyticsVolumeChart.update('none');
 
             } catch (err) {
                 console.error("Error fetching speed metrics:", err);
             }
         }
 
-        // Fetch metrics immediately and refresh every 3 seconds
-        fetchSpeedMetrics();
-        setInterval(fetchSpeedMetrics, 3000);
+        // Initialize setup on load
+        window.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            fetchSpeedMetrics();
+            setInterval(fetchSpeedMetrics, 3000);
+        });
     </script>
 </body>
+
 </html>
