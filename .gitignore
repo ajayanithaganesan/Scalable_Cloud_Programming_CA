@@ -28,3 +28,12 @@ speed_layer.md
 implementation.md
 log.md
 dashboard.md
+
+# Data & Datasets
+*.csv
+*.tsv
+*.parquet
+*.gz
+*.zip
+batch/data/
+data/
