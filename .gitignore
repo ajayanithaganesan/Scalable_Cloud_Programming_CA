@@ -21,3 +21,10 @@ Thumbs.db
 
 # AWS
 .aws/
+
+project_details.md 
+details.md
+speed_layer.md
+implementation.md
+log.md
+dashboard.md
