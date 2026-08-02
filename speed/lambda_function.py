@@ -53,7 +53,7 @@ def process_record(record):
     # Step 3: Format record for DynamoDB (DynamoDB requires Decimal for numbers)
     item = {
         'symbol': symbol,                                  # Partition Key
-        'timestamp': trade_time,                          # Sort Key (Unix Epoch ms)
+        'timestamp': trade_time,                          # Sort Key
         'price': Decimal(str(price)),
         'quantity': Decimal(str(quantity)),
         'volume_usd': Decimal(str(volume_usd)),

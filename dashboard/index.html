@@ -24,6 +24,20 @@
             --card-bg: rgba(15, 23, 42, 0.7);
         }
 
+        body.light-theme {
+            --bg-main: #f1f5f9;
+            --sidebar-bg: #ffffff;
+            --panel-bg: #ffffff;
+            --panel-border: #e2e8f0;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --accent-blue: #0284c7;
+            --accent-purple: #9333ea;
+            --accent-green: #16a34a;
+            --card-bg: #f8fafc;
+        }
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -40,6 +54,7 @@
             display: flex;
             min-height: 100vh;
             overflow-x: hidden;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         /* --- SIDEBAR STYLING --- */
@@ -54,6 +69,7 @@
             position: fixed;
             height: 100vh;
             z-index: 10;
+            transition: background 0.3s ease, border-color 0.3s ease;
         }
 
         .sidebar-brand {
@@ -64,23 +80,16 @@
             border-bottom: 1px solid var(--panel-border);
         }
 
-        .brand-icon {
-            width: 32px;
-            height: 32px;
-            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            color: #fff;
-            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
-        }
-
         .brand-text {
-            font-size: 1.05rem;
+            font-size: 1.25rem;
             font-weight: 700;
             background: linear-gradient(135deg, #e0f2fe, #38bdf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        body.light-theme .brand-text {
+            background: linear-gradient(135deg, #0284c7, #4f46e5);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -136,19 +145,27 @@
             stroke: var(--accent-blue);
         }
 
-        .sidebar-footer {
-            padding: 16px;
-            background: rgba(15, 23, 42, 0.6);
-            border-radius: 12px;
-            border: 1px solid var(--panel-border);
-            font-size: 0.75rem;
-            color: var(--text-muted);
-        }
-
-        .live-status {
+        .theme-toggle-btn {
+            width: 100%;
             display: flex;
             align-items: center;
-            gap: 6px;
+            justify-content: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .theme-toggle-btn:hover {
+            background: var(--panel-border);
+            color: var(--accent-blue);
+        }
             color: var(--accent-green);
             font-weight: 600;
             margin-bottom: 4px;
@@ -441,8 +458,7 @@
     <aside class="sidebar">
         <div>
             <div class="sidebar-brand">
-                <div class="brand-icon">⚡</div>
-                <div class="brand-text">CryptoPulse</div>
+                <div class="brand-text">Cryptometry</div>
             </div>
 
             <ul class="nav-menu">
@@ -484,13 +500,9 @@
             </ul>
         </div>
 
-        <div class="sidebar-footer">
-            <div class="live-status">
-                <div class="pulse-dot"></div>
-                Lambda Engine Active
-            </div>
-            <span>DynamoDB Speed Layer</span>
-        </div>
+        <button class="theme-toggle-btn" id="theme-toggle-btn" onclick="toggleTheme()">
+            <span id="theme-icon">🌙</span> <span id="theme-text">Dark Mode</span>
+        </button>
     </aside>
 
     <!-- MAIN CONTENT AREA -->
@@ -502,9 +514,7 @@
                 <h1 id="page-title">Overview Dashboard</h1>
                 <p>Real-Time Contagion & Liquidity Speed Layer Engine</p>
             </div>
-            <div class="last-updated-tag">
-                Refreshed: <span id="last-updated">Updating...</span>
-            </div>
+            <!-- Refreshed tag removed per request -->
         </div>
 
         <!-- PAGE 1: OVERVIEW DASHBOARD -->
@@ -639,19 +649,28 @@
                     </table>
                 </div>
 
-                <!-- Batch Layer Placeholder -->
+                <!-- Panel 4: Historical Trend (EMR Spark Batch Output) -->
                 <div class="panel-card">
                     <div class="panel-title">
-                        Panel 4 — Historical Trend
+                        Panel 4 — Historical Baseline Benchmarks
                         <span class="source-tag"
-                            style="color: #d8b4fe; border-color: rgba(168, 85, 247, 0.3); background: rgba(88, 28, 135, 0.2);">Batch
-                            Layer</span>
+                            style="color: #d8b4fe; border-color: rgba(168, 85, 247, 0.3); background: rgba(88, 28, 135, 0.2);">EMR Batch Output</span>
                     </div>
-                    <div class="batch-placeholder">
-                        <h4>EMR Spark + Athena Batch Output</h4>
-                        <p style="font-size: 0.85rem;">Historical trend analytics chart will be rendered here upon Batch
-                            Layer completion.</p>
-                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>June VWAP</th>
+                                <th>Avg Trade Size</th>
+                                <th>Monthly Vol</th>
+                            </tr>
+                        </thead>
+                        <tbody id="panel4-container">
+                            <tr>
+                                <td colspan="4" style="text-align: center;">Loading S3 batch baselines...</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -678,6 +697,24 @@
         // --- CHARTS OBJECT REFERENCES ---
         let overviewPriceChart, liquidityComparisonChart, contagionDynamicChart, analyticsVolumeChart;
         const sparklineCharts = {};
+
+        // --- THEME TOGGLE FUNCTION ---
+        function toggleTheme() {
+            const body = document.body;
+            const themeIcon = document.getElementById('theme-icon');
+            const themeText = document.getElementById('theme-text');
+            
+            body.classList.toggle('light-theme');
+            const isLight = body.classList.contains('light-theme');
+            
+            if (isLight) {
+                themeIcon.innerText = '☀️';
+                themeText.innerText = 'Light Mode';
+            } else {
+                themeIcon.innerText = '🌙';
+                themeText.innerText = 'Dark Mode';
+            }
+        }
 
         // TAB SWITCHING FUNCTION
         function switchTab(tabId, elem) {
@@ -739,7 +776,8 @@
                 const data = await response.json();
 
                 const timeStr = new Date().toLocaleTimeString();
-                document.getElementById('last-updated').innerText = timeStr + ' UTC';
+                const lastUpdatedElem = document.getElementById('last-updated');
+                if (lastUpdatedElem) lastUpdatedElem.innerText = timeStr + ' UTC';
 
                 if (store.labels.length >= MAX_POINTS) store.labels.shift();
                 store.labels.push(timeStr);
@@ -862,6 +900,26 @@
                         </tr>
                     `;
                 });
+
+                // --- PROCESS PANEL 4: S3 BATCH LAYER HISTORICAL BENCHMARKS ---
+                const p4Container = document.getElementById('panel4-container');
+                if (p4Container && data.batch_trends) {
+                    p4Container.innerHTML = '';
+                    Object.keys(data.batch_trends).forEach(sym => {
+                        const b = data.batch_trends[sym];
+                        const vwapFmt = Number(b.vwap).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        const avgTradeFmt = Number(b.average_trade_value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        const volFmt = Number(b.monthly_volume).toLocaleString(undefined, { maximumFractionDigits: 0 });
+                        p4Container.innerHTML += `
+                            <tr>
+                                <td><strong>${sym}</strong></td>
+                                <td>$${vwapFmt}</td>
+                                <td>$${avgTradeFmt}</td>
+                                <td>${volFmt}</td>
+                            </tr>
+                        `;
+                    });
+                }
 
                 // --- UPDATE GLOBAL CHARTS ---
                 // 1. Overview Prices

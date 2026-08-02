@@ -2,6 +2,7 @@ import http.server
 import socketserver
 import json
 import os
+import sys
 import urllib.parse
 from datetime import datetime
 import boto3
@@ -9,9 +10,13 @@ from boto3.dynamodb.conditions import Key
 from decimal import Decimal
 from dotenv import load_dotenv
 
+# Add project root directory to path for importing serving modules
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from serving.batch_reader import get_historical_benchmarks
+
 load_dotenv()
 
-PORT = 5000
+PORT = int(os.getenv("PORT", 5000))
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 TABLE_NAME = os.getenv("DYNAMODB_TABLE", "CryptoSpeedMetrics")
 
@@ -32,6 +37,7 @@ def convert_decimal(obj):
 
 
 def get_speed_metrics():
+    # 1. Fetch real-time trades from DynamoDB (Speed Layer)
     latest_metrics = {}
 
     for symbol in SYMBOLS:
@@ -39,7 +45,7 @@ def get_speed_metrics():
             response = table.query(
                 KeyConditionExpression=Key("symbol").eq(symbol),
                 ScanIndexForward=False,
-                Limit=5
+                Limit=50
             )
             items = response.get("Items", [])
             latest_metrics[symbol] = convert_decimal(items) if items else []
@@ -47,14 +53,18 @@ def get_speed_metrics():
             print(f"Error querying DynamoDB for {symbol}: {e}")
             latest_metrics[symbol] = []
 
-    # Panel 1: Liquidity Health
+    # 2. Fetch June 2026 Batch Layer baselines from S3 (Batch Layer / Serving Layer)
+    batch_benchmarks = get_historical_benchmarks()
+
+    # Panel 1: Liquidity Health (Speed vs Batch Baseline Comparison)
     liquidity_health = {}
     for symbol in SYMBOLS:
         items = latest_metrics.get(symbol, [])
         if items:
             avg_vol = sum(item.get("volume_usd", 0) for item in items) / len(items)
-            baseline = 50.0 if "BTC" in symbol else (20.0 if "ETH" in symbol else 10.0)
-            ratio = round(min(1.0, max(0.1, avg_vol / baseline)), 2)
+            # Fetch June Batch Layer historical average trade size baseline
+            historical_baseline = batch_benchmarks.get(symbol, {}).get("average_trade_value", 50.0)
+            ratio = round(min(1.0, max(0.1, avg_vol / historical_baseline)), 2)
             
             if ratio >= 0.8:
                 status, badge = "Healthy", "green"
@@ -63,11 +73,16 @@ def get_speed_metrics():
             else:
                 status, badge = "Liquidity Crisis", "red"
                 
-            liquidity_health[symbol] = {"ratio": ratio, "status": status, "badge": badge}
+            liquidity_health[symbol] = {
+                "ratio": ratio,
+                "status": status,
+                "badge": badge,
+                "historical_baseline": historical_baseline
+            }
         else:
-            liquidity_health[symbol] = {"ratio": 0.0, "status": "No Data", "badge": "gray"}
+            liquidity_health[symbol] = {"ratio": 0.0, "status": "No Data", "badge": "gray", "historical_baseline": 0.0}
 
-    # Panel 2: Contagion Pairs
+    # Panel 2: Contagion Pairs (Speed vs Batch VWAP Deviation Comparison)
     pairs = [
         {"pair": "BTC <-> ETH", "coinA": "BTCUSDT", "coinB": "ETHUSDT"},
         {"pair": "BTC <-> SOL", "coinA": "BTCUSDT", "coinB": "SOLUSDT"},
@@ -79,9 +94,16 @@ def get_speed_metrics():
         itemsA = latest_metrics.get(p["coinA"], [])
         itemsB = latest_metrics.get(p["coinB"], [])
         if itemsA and itemsB:
-            volA = itemsA[0].get("volume_usd", 1)
-            volB = itemsB[0].get("volume_usd", 1)
-            corr = round(min(0.99, max(0.15, (volA / (volA + volB)) * 1.8)), 2)
+            # Calculate price deviation relative to June Batch VWAP benchmark
+            priceA = itemsA[0].get("price", 1)
+            priceB = itemsB[0].get("price", 1)
+            vwapA = batch_benchmarks.get(p["coinA"], {}).get("vwap", priceA)
+            vwapB = batch_benchmarks.get(p["coinB"], {}).get("vwap", priceB)
+            
+            devA = abs(priceA - vwapA) / vwapA
+            devB = abs(priceB - vwapB) / vwapB
+            
+            corr = round(min(0.99, max(0.15, (devA + devB) * 15.0 + 0.35)), 2)
         else:
             corr = 0.50
             
@@ -121,10 +143,23 @@ def get_speed_metrics():
                 "timestamp": "N/A"
             })
 
+    # Panel 4: Historical Trend Data (From S3 Batch Layer)
+    batch_trends = {}
+    for symbol in SYMBOLS:
+        b = batch_benchmarks.get(symbol, {})
+        batch_trends[symbol] = {
+            "vwap": b.get("vwap", 0),
+            "average_trade_value": b.get("average_trade_value", 0),
+            "monthly_volume": b.get("monthly_volume", 0),
+            "high": b.get("high", 0),
+            "low": b.get("low", 0)
+        }
+
     return {
         "liquidity_health": liquidity_health,
         "contagion": contagion_data,
-        "live_ticker": live_ticker
+        "live_ticker": live_ticker,
+        "batch_trends": batch_trends
     }
 
 
@@ -161,4 +196,5 @@ def run_server():
 
 if __name__ == "__main__":
     run_server()
+
 

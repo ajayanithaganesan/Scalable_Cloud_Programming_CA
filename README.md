@@ -1,324 +1,139 @@
-# Real-Time Crypto Contagion & Liquidity Monitor using Lambda Architecture
+# Cryptometry: Real-Time Crypto Contagion & Liquidity Monitor (Lambda Architecture)
 
-## MSc Cloud Computing
-
-**Module:** Scalable Cloud Programming
-
-### Team Members
-
-- Muthukumar - Batch Layer
-- Ajay Anitha Ganesan - Speed Layer
+### Scalable Cloud Programming (MSc in Cloud Computing)
+**Institution**: National College of Ireland (NCI)  
+**Authors**: Ajay Anitha Ganesan (Speed & Serving Layer) & Muthukumar (Batch Layer)  
+**Production Live URL**: [http://cryptometry.us-east-1.elasticbeanstalk.com/](http://cryptometry.us-east-1.elasticbeanstalk.com/)
 
 ---
 
-## Project Overview
+## Executive Summary
 
-This project builds a simple Lambda Architecture application for cryptocurrency trade analytics using AWS services, Apache Spark, and a web dashboard.
+**Cryptometry** is an end-to-end cloud-native platform designed to monitor cryptocurrency market liquidity crises and cross-asset contagion in real-time using the **Lambda Architecture** paradigm. 
 
-The system combines:
-
-- a real-time speed layer for live market metrics
-- a batch layer for historical analytics
-- a serving layer based on Athena
-- a front-end dashboard for visual reporting
-
-The project focuses on crypto trade data for:
-
-- BTCUSDT
-- ETHUSDT
-- SOLUSDT
+The application ingests live streaming trades (`BTCUSDT`, `ETHUSDT`, `SOLUSDT`) via Binance WebSockets, processes stream metrics through serverless AWS Lambda into DynamoDB, and compares live trades against historical monthly baselines computed over **282.5 million trade records** using Apache Spark on AWS EMR.
 
 ---
 
-## Architecture
+## 1. System Architecture
 
 ```text
-Binance WebSocket
-    |
-    v
-Python Producer
-    |
-    v
-Amazon Kinesis Data Stream
-    |
-    +--------------------+
-    |                    |
-    v                    v
-Firehose               Lambda
-    |                    |
-    v                    v
-S3 Raw JSON           DynamoDB
-    |
-    v
-Spark on EMR
-    |
-    v
-Processed Batch Views in S3
-    |
-    v
-Athena
-    |
-    v
-HTML Dashboard
+                               Binance Historical Trades (June 2026 CSVs)
+                                                  │
+                                                  ▼
+                                       BATCH LAYER (Apache Spark on EMR)
+                                                  │
+                                       Historical Baselines (Parquet in S3)
+                                                  │
+                                                  ▼
+                                        SERVING & COMPARISON ENGINE
+                                         (Python / boto3 / S3 & DynamoDB)
+                                                  ▲
+                                                  │
+Real-Time Binance WebSocket Stream                │
+              │                                   │
+              ▼                                   │
+    INGESTION LAYER (Kinesis)                     │
+              │                                   │
+              ▼                                   │
+     SPEED LAYER (AWS Lambda) ────────────────────┘
+              │
+              ▼
+   STORAGE (DynamoDB Speed Metrics)
+              │
+              ▼
+   PRESENTATION LAYER (Elastic Beanstalk Web Dashboard - Cryptometry)
 ```
 
 ---
 
-## Dashboard Views
+## 2. Component Pipeline
 
-The dashboard will combine batch-layer and speed-layer metrics so the historical and live views stay aligned.
+### A. Ingestion Layer (`ingestion/`)
+- **WebSocket Producer** (`ingestion/producer.py`): Ingests live executed trade streams for `BTCUSDT`, `ETHUSDT`, and `SOLUSDT` from Binance.
+- **Kinesis Data Streams**: Partitioned streaming buffer (`crypto-stream`) delivering low-latency payloads.
 
-1. Liquidity Health from DynamoDB
-2. Crypto Contagion from DynamoDB
-3. Live Market Metrics from DynamoDB
-4. Historical Trend from Athena over batch outputs
+### B. Speed Layer (`speed/`)
+- **AWS Lambda** (`speed/lambda_function.py`): Event-driven stream processor triggered by Kinesis.
+- **Amazon DynamoDB** (`CryptoSpeedMetrics`): Storage table with 24-hour TTL expiration.
+- **Sliding Window**: Enforces a 5-minute rolling window over live trades to smooth single-trade noise.
 
----
+### C. Batch Layer (`batch layer/`)
+- **PySpark on AWS EMR** (`batch layer/EMR_spark_Job.py`): Processes **282,532,133 historical trade records**.
+- Computes **OHLCV**, **VWAP**, **Price Volatility ($\text{StdDev}$)**, **Liquidity Metrics**, and **Top 10 Trade Spikes**.
+- Writes partitioned Parquet files directly to Amazon S3 (`s3://scp-crypto-project/output/`).
 
-## Current Project Status
-
-### Completed
-
-- Repository setup
-- GitHub configuration
-- Folder structure
-- Kinesis Data Stream
-- `.env` configuration
-- Ingestion `config.py`
-- Binance WebSocket producer
-- Automatic reconnection
-- JSON publishing to Kinesis
-- Firehose configuration
-- Firehose to S3 verification
-- Raw S3 storage
-- Historical Binance trade dataset collected and validated
-- Local Apache Spark development environment configured
-- Batch layer architecture redesigned for cost-efficient EMR execution
-
-### In Progress
-
-- Spark batch layer redesign for local-first development
-- Cost-aware EMR execution planning
-
-### Upcoming
-
-- EMR execution for batch jobs
-- Athena setup over processed data
-- Lambda and DynamoDB speed layer
-- Dashboard implementation
-- Benchmarking
-- Final report
+### D. Serving Layer & Dashboard (`dashboard/` & `serving/`)
+- **Serving Backend** (`dashboard/app.py` & `serving/batch_reader.py`): Queries DynamoDB and S3 to execute the Lambda comparison engine.
+- **Web UI** (`dashboard/index.html`): Deployed on **AWS Elastic Beanstalk** (`CryptometryApp`). Features a 4-panel monitoring grid and interactive Dark/Light theme switcher.
 
 ---
 
-## Batch Layer Re-Plan
+## 3. Empirical Performance & Benchmarking Results
 
-AWS Academy credit limits changed the batch-layer approach, so the batch work is now designed to be cost efficient.
+### A. AWS EMR Batch Speedup Benchmark (282.5 Million Records)
 
-The batch layer will still be implemented, but it will be:
+| EMR Cluster Configuration | Total Records Processed | Execution Time | Processing Throughput | Speedup Ratio |
+| :--- | :--- | :--- | :--- | :--- |
+| **PySpark (1 Core Serial)** | **282,532,133** | **405.74 seconds** (6.76 min) | **696,340.81 rec/sec** | **1.00x (Baseline)** |
+| **PySpark (2 Core Nodes)** | **282,532,133** | **298.53 seconds** (4.98 min) | **946,421.50 rec/sec** | **1.36x Speedup** |
+| **PySpark (3 Core Nodes)** | **282,532,133** | **230.40 seconds** (3.84 min) | **1,226,252.13 rec/sec** | **1.76x Speedup** 🚀 |
 
-- developed locally first
-- tested on a small sample dataset
-- moved to EMR only for short, controlled runs
-
-### Batch Objectives
-
-- Process historical cryptocurrency trade datasets
-- Use Apache Spark DataFrame operations
-- Store processed batch views in Amazon S3
-- Query historical analytics through Athena
-- Keep EMR usage to the minimum required for demonstration
-
-### Dataset Strategy
-
-Historical data will come from Binance historical trades.
-
-Preferred layout in S3:
-
-```text
-historical/
-    BTCUSDT/
-    ETHUSDT/
-    SOLUSDT/
-```
-
-Why this dataset:
-
-- same schema as the live Binance WebSocket stream
-- contains executed trades needed for analytics
-- suitable for liquidity and contagion analysis
-- large enough for Spark batch processing
-
-### Development Workflow
-
-The batch layer is planned in two stages:
-
-1. Local development
-   - build the Spark pipeline locally
-   - read CSV or JSON trade data
-   - clean and parse timestamps
-   - compute analytics
-   - validate the output
-
-2. Cloud execution
-   - upload finalized historical data to S3
-   - launch EMR only when needed
-   - run the Spark job
-   - save processed results back to S3
-   - terminate EMR immediately after completion
-
-### EMR Usage Strategy
-
-EMR will not stay running continuously.
-
-```text
-Launch EMR
-    |
-    v
-Execute Spark Job
-    |
-    v
-Write Results to S3
-    |
-    v
-Terminate EMR
-```
-
-This keeps AWS Academy usage low while still demonstrating distributed batch processing.
+### B. Real-Time Streaming & Serving Metrics
+- **Serving API Response Latency**: **326.96 ms** to **637.66 ms** (Measured via `benchmarks/live_stream_benchmark.py`).
+- **Benchmark Plots**: Saved in `benchmarks/results/` (`speedup_vs_worker_count.png`, `latency_vs_ingestion_rate.png`, `throughput_over_time.png`).
 
 ---
 
-## Batch Metrics
-
-Spark will compute historical analytics including:
-
-- Total Trading Volume
-- Trade Count
-- Average Price
-- VWAP
-- OHLCV
-- Liquidity Metrics
-- Historical Contagion Metrics
-- Cross-Asset Correlation for BTC, ETH, and SOL
-
-Preferred output format:
-
-- Parquet
-
-Alternative output format:
-
-- CSV
-
-Planned S3 destination structure:
+## 4. Repository Directory Structure
 
 ```text
-s3://crypto-batch-views/
-    ohlcv/
-    vwap/
-    liquidity/
-    contagion/
-    correlation/
+Scalable_Cloud_Programming_CA/
+├── .env                       # Cloud configuration (Region, Table, Bucket)
+├── Procfile                   # AWS Elastic Beanstalk web entrypoint
+├── requirements.txt           # Deployment Python dependencies
+├── ingestion/
+│   ├── config.py              # Kinesis configuration
+│   └── producer.py            # Binance WebSocket stream producer
+├── speed/
+│   ├── lambda_function.py     # Stream processor AWS Lambda function
+│   └── test_lambda_local.py   # Local mock runner for Lambda
+├── batch layer/
+│   └── EMR_spark_Job.py       # Distributed PySpark batch processing script
+├── serving/
+│   └── batch_reader.py        # S3 Parquet batch benchmark reader
+├── dashboard/
+│   ├── app.py                 # Serving backend & comparison engine
+│   └── index.html             # Cryptometry web dashboard UI
+└── benchmarks/
+    ├── live_stream_benchmark.py       # Real-time HTTP serving latency tester
+    ├── generate_performance_graphs.py # Report benchmark figure renderer
+    └── results/                       # High-resolution PNG plots & metrics
 ```
 
 ---
 
-## Serving Layer
+## 5. How to Run Locally
 
-The dashboard will not query Spark directly.
+1. **Clone & Install Dependencies**:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: .\venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
 
-```text
-Spark
-    |
-    v
-Processed Results in S3
-    |
-    v
-Athena
-    |
-    v
-Dashboard
-```
+2. **Start Live Ingestion Producer**:
+   ```bash
+   python ingestion/producer.py
+   ```
 
-Benefits:
+3. **Start Dashboard Serving App**:
+   ```bash
+   python dashboard/app.py
+   ```
+   Open **`http://127.0.0.1:5000`** in your browser.
 
-- no running Spark cluster for queries
-- fast dashboard response
-- low cost
-- serverless querying
-
----
-
-## Speed Layer
-
-The speed layer remains independent and real-time.
-
-```text
-Binance WebSocket
-    |
-    v
-Kinesis Data Stream
-    |
-    v
-Lambda
-    |
-    v
-DynamoDB
-```
-
-Speed layer responsibilities:
-
-- Rolling VWAP
-- Rolling Volume
-- Liquidity Ratio
-- Contagion Score
-- Live Market Metrics
-
----
-
-## Cost Optimization Strategy
-
-To minimize AWS Academy credit usage:
-
-- develop the Spark job locally first
-- test using a small sample dataset
-- upload only finalized historical data to S3
-- launch EMR only for execution
-- terminate EMR immediately after processing
-- store processed outputs permanently in S3
-- query batch views using Athena
-- keep the speed layer active only when needed for demonstrations
-
----
-
-## Benchmarking
-
-The project will compare:
-
-- serial processing
-- Spark processing
-
-Metrics to measure:
-
-- processing time
-- throughput
-- speedup
-
----
-
-## Technologies
-
-- Python
-- AWS Lambda
-- Amazon Kinesis Data Streams
-- Amazon Kinesis Firehose
-- Amazon S3
-- Amazon EMR
-- DynamoDB
-- Athena
-- Apache Spark
-- HTML
-- CSS
-- JavaScript
-
----
-
+4. **Run Live Stream Benchmark**:
+   ```bash
+   python benchmarks/live_stream_benchmark.py
+   ```

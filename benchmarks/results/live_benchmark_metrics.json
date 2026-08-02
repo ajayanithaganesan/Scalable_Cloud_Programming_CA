@@ -1,0 +1,7 @@
+{
+    "num_requests": 10,
+    "api_response_avg_ms": 456.1,
+    "api_response_min_ms": 326.96,
+    "api_response_max_ms": 637.66,
+    "end_to_end_freshness_avg_ms": 0
+}
