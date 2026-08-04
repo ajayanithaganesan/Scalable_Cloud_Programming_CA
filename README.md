@@ -15,7 +15,9 @@ The application ingests live streaming trades (`BTCUSDT`, `ETHUSDT`, `SOLUSDT`) 
 
 ---
 
-## 1. System Architecture
+## 1. System Architecture Diagram
+
+![System Architecture Diagram](docs/Architecture%20Diagram%20Cryptometry.jpeg)
 
 ```text
                                Binance Historical Trades (June 2026 CSVs)
@@ -47,7 +49,18 @@ Real-Time Binance WebSocket Stream                │
 
 ---
 
-## 2. Component Pipeline
+## 2. Web Application Screenshots
+
+| Component View | Screenshot |
+| :--- | :--- |
+| **Dashboard Overview** | ![Dashboard Overview](docs/dashboard%20overview%20page.png) |
+| **Liquidity Health Monitor** | ![Liquidity Health](docs/Liquidity%20health%20page.png) |
+| **Crypto Contagion Matrix** | ![Crypto Contagion Risk](docs/Crypto%20Contagion%20Matrix.png) |
+| **Live Ticker & Batch Benchmarks** | ![Market Analytics & EMR Benchmarks](docs/Live%20market%20and%20EMR%20benchmarks.png) |
+
+---
+
+## 3. Component Pipeline
 
 ### A. Ingestion Layer (`ingestion/`)
 - **WebSocket Producer** (`ingestion/producer.py`): Ingests live executed trade streams for `BTCUSDT`, `ETHUSDT`, and `SOLUSDT` from Binance.
@@ -69,7 +82,7 @@ Real-Time Binance WebSocket Stream                │
 
 ---
 
-## 3. Empirical Performance & Benchmarking Results
+## 4. Empirical Performance & Benchmarking Results
 
 ### A. AWS EMR Batch Speedup Benchmark (282.5 Million Records)
 
@@ -79,25 +92,32 @@ Real-Time Binance WebSocket Stream                │
 | **PySpark (2 Core Nodes)** | **282,532,133** | **298.53 seconds** (4.98 min) | **946,421.50 rec/sec** | **1.36x Speedup** |
 | **PySpark (3 Core Nodes)** | **282,532,133** | **230.40 seconds** (3.84 min) | **1,226,252.13 rec/sec** | **1.76x Speedup** 🚀 |
 
-### B. Real-Time Streaming & Serving Metrics
-- **Serving API Response Latency**: **326.96 ms** to **637.66 ms** (Measured via `benchmarks/live_stream_benchmark.py`).
-- **Benchmark Plots**: Saved in `benchmarks/results/` (`speedup_vs_worker_count.png`, `latency_vs_ingestion_rate.png`, `throughput_over_time.png`).
+### B. Benchmark Performance Plots
+
+| Speedup vs Worker Count | Response Latency vs Ingestion Rate | Throughput Comparison |
+| :---: | :---: | :---: |
+| ![Speedup Plot](benchmarks/results/speedup_vs_worker_count.png) | ![Latency Plot](benchmarks/results/latency_vs_ingestion_rate.png) | ![Throughput Plot](benchmarks/results/throughput_over_time.png) |
 
 ---
 
-## 4. Repository Directory Structure
+## 5. Repository Directory Structure
 
 ```text
 Scalable_Cloud_Programming_CA/
 ├── .env                       # Cloud configuration (Region, Table, Bucket)
 ├── Procfile                   # AWS Elastic Beanstalk web entrypoint
 ├── requirements.txt           # Deployment Python dependencies
+├── docs/                      # Screenshots & Architecture Diagram
+│   ├── Architecture Diagram Cryptometry.jpeg
+│   ├── Crypto Contagion Matrix.png
+│   ├── Liquidity health page.png
+│   ├── Live market and EMR benchmarks.png
+│   └── dashboard overview page.png
 ├── ingestion/
 │   ├── config.py              # Kinesis configuration
 │   └── producer.py            # Binance WebSocket stream producer
 ├── speed/
-│   ├── lambda_function.py     # Stream processor AWS Lambda function
-│   └── test_lambda_local.py   # Local mock runner for Lambda
+│   └── lambda_function.py     # Stream processor AWS Lambda function
 ├── batch layer/
 │   └── EMR_spark_Job.py       # Distributed PySpark batch processing script
 ├── serving/
@@ -113,7 +133,7 @@ Scalable_Cloud_Programming_CA/
 
 ---
 
-## 5. How to Run Locally
+## 6. How to Run Locally
 
 1. **Clone & Install Dependencies**:
    ```bash

@@ -3,8 +3,6 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 
-
-
 # IDE
 .vscode/
 .idea/
@@ -22,15 +20,11 @@ Thumbs.db
 # AWS
 .aws/
 
-project_details.md 
-details.md
-speed_layer.md
-implementation.md
-log.md
-dashboard.md
+# Build Packages & Temp Outputs
 application.zip
-report.md
-description.md
+temp_input_csv/
+serial_output/
+
 # Data & Datasets
 *.csv
 *.tsv
@@ -38,6 +32,3 @@ description.md
 *.gz
 *.zip
 batch/data/
-data/
-furtherguide.md
-
